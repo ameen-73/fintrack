@@ -1,0 +1,1083 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>FinTrack - Multi-Device Finance Tracker</title>
+    <!-- Tailwind CSS for modern design token styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts for Playfair Display & Inter matching Screenshot (133).png -->
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,800;1,600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+                        serif: ['Playfair Display', 'Georgia', 'serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Chart.js for premium vector analytics representations -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #4a2015;
+            border-radius: 4px;
+        }
+        .app-container {
+            max-width: 480px;
+            min-height: 100vh;
+        }
+        button, select, input {
+            touch-action: manipulation;
+        }
+        .loading-shimmer {
+            background: linear-gradient(90deg, #120c0a 25%, #1c1411 50%, #120c0a 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+        }
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+    </style>
+</head>
+<body class="bg-[#060404] text-stone-100 font-sans antialiased flex justify-center min-h-screen">
+
+    <div class="app-container w-full bg-[#0c0807] flex flex-col justify-between shadow-2xl relative border-x border-[#241715]">
+        
+        <!-- Main Workspace Frame -->
+        <div id="mainWorkspace" class="flex-grow flex flex-col justify-between pb-24">
+            
+            <!-- Dynamic Header matching top bar in Screenshot (133).png -->
+            <header class="bg-[#0c0807]/95 backdrop-blur-md sticky top-0 z-40 px-5 py-4 border-b border-[#241715]">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-2.5">
+                        <!-- Red-orange wallet icon wrapper -->
+                        <div class="w-9 h-9 bg-[#f05123] rounded-xl flex items-center justify-center shadow-lg shadow-[#f05123]/20">
+                            <i data-lucide="wallet" class="w-5 h-5 text-white"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-1.5">
+                                <h1 class="text-sm font-bold text-white tracking-tight">FinTrack</h1>
+                                <span id="statusIndicatorDot" class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                            </div>
+                            <span id="headerStatusSubtitle" class="text-[9px] text-amber-500 font-bold tracking-wider uppercase">
+                                LOCAL STORAGE MODE
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Right Calendar / Filter controls -->
+                    <div class="flex items-center gap-2">
+                        <!-- Sign Out Button -->
+                        <button id="logoutBtn" onclick="window.handleLogout()" class="hidden p-2 bg-[#1c1411] hover:bg-rose-950 text-stone-400 hover:text-rose-400 rounded-lg transition" title="Sign Out">
+                            <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
+                        </button>
+                        <input type="month" id="monthFilter" 
+                               class="bg-[#1c1411] hover:bg-[#281d19] text-white text-xs font-semibold rounded-xl px-2.5 py-2 border border-[#2c1d1a] focus:outline-none focus:ring-2 focus:ring-[#f05123] transition-all cursor-pointer">
+                    </div>
+                </div>
+            </header>
+
+            <main class="flex-grow overflow-y-auto px-5 py-5 space-y-5">
+
+                <!-- Setup Notice Banner - shown when credentials are placeholder -->
+                <div id="setupNoticeBanner" class="hidden bg-[#1a1500] border border-amber-800/50 rounded-xl p-3.5">
+                    <div class="flex items-start gap-3">
+                        <div class="p-1.5 bg-amber-500/15 text-amber-400 rounded-lg shrink-0">
+                            <i data-lucide="settings" class="w-4 h-4"></i>
+                        </div>
+                        <div>
+                            <h4 class="text-xs font-bold text-amber-300">Setup Required</h4>
+                            <p class="text-[10px] text-amber-400/70 mt-0.5 leading-relaxed">Open the HTML file and replace <code class="bg-amber-900/30 px-1 rounded text-amber-300">YOUR_NEON_HTTP_ENDPOINT</code> and <code class="bg-amber-900/30 px-1 rounded text-amber-300">YOUR_NEON_API_KEY</code> with your <a href="https://neon.tech" target="_blank" class="underline text-amber-300">Neon.tech</a> credentials to enable cloud sync.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cloud Unresponsive Banner -->
+                <div id="unresponsiveBanner" class="hidden bg-[#1a110e] border border-[#4a2015] rounded-xl p-3.5 transition-all duration-300">
+                    <div class="flex items-start gap-3">
+                        <div class="p-1.5 bg-[#f05123]/15 text-[#f05123] rounded-lg">
+                            <i data-lucide="bell" class="w-4 h-4"></i>
+                        </div>
+                        <div>
+                            <h4 class="text-xs font-bold text-stone-200">Cloud system is not responsive</h4>
+                            <p class="text-[10px] text-stone-400 mt-0.5">Operating in Local Sandbox mode. Try again shortly.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Email Account Login Banner (Matches style of Google banner in Screenshot (133).png but now Email/Password based) -->
+                <div id="emailAuthBanner" class="bg-[#140e0c] rounded-2xl p-5 border border-[#2c1d1a] space-y-4">
+                    <div class="flex items-start gap-3">
+                        <div class="p-2 bg-[#f05123]/10 text-[#f05123] rounded-xl mt-0.5">
+                            <i data-lucide="mail" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <h4 class="text-sm font-bold text-stone-200">Email Database Synchronizer</h4>
+                            <p class="text-[11px] text-stone-400 leading-relaxed">Log in or create a credentials sync token to access your ledgers instantly across multiple systems.</p>
+                        </div>
+                    </div>
+
+                    <!-- Toggle tabs for Auth card -->
+                    <div class="flex border-b border-[#1f1412] text-xs">
+                        <button id="tabLogin" onclick="window.setAuthTab('login')" class="flex-1 pb-2 text-[#f05123] border-b-2 border-[#f05123] font-bold">Log In</button>
+                        <button id="tabRegister" onclick="window.setAuthTab('register')" class="flex-1 pb-2 text-stone-500 font-semibold hover:text-stone-300">Sign Up</button>
+                    </div>
+
+                    <!-- Compact Auth Forms -->
+                    <form id="authForm" onsubmit="window.handleAuthSubmit(event)" class="space-y-3">
+                        <div>
+                            <input type="email" id="authEmail" required placeholder="your.email@gmail.com" 
+                                   class="w-full px-3 py-2 bg-[#0c0807] border border-[#2c1d1a] rounded-xl focus:outline-none focus:ring-1 focus:ring-[#f05123] text-xs text-stone-100 placeholder:text-stone-600 transition-all">
+                        </div>
+                        <div class="relative">
+                            <input type="password" id="authPassword" required placeholder="Enter password (min. 6 chars)" 
+                                   class="w-full px-3 py-2 bg-[#0c0807] border border-[#2c1d1a] rounded-xl focus:outline-none focus:ring-1 focus:ring-[#f05123] text-xs text-stone-100 placeholder:text-stone-600 transition-all">
+                        </div>
+                        <button type="submit" id="authSubmitBtn" 
+                                class="w-full bg-[#1c1411] hover:bg-[#281d19] border border-[#3d2722] text-stone-200 text-xs font-semibold py-2.5 px-3 rounded-xl flex items-center justify-center gap-2 transition-all">
+                            <i data-lucide="key-round" class="w-3.5 h-3.5 text-[#f05123]"></i>
+                            <span id="authSubmitText">Access Sync Workspace</span>
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Logged In User State Information -->
+                <div id="userSyncStatusCard" class="hidden bg-[#101b17] border border-[#164e3a] text-[#00e599] text-[10px] py-2 px-3 rounded-xl font-medium">
+                    <div class="flex items-center justify-between">
+                        <span class="flex items-center gap-1.5">
+                            <span class="w-1.5 h-1.5 rounded-full bg-[#00e599] animate-ping"></span>
+                            <span id="activeUserLabel">Logged in as: visitor@gmail.com</span>
+                        </span>
+                        <span id="lastSyncStamp" class="text-[9px] text-stone-500">Synced just now</span>
+                    </div>
+                </div>
+
+                <!-- Balance & Ledger Summary Area -->
+                <div class="bg-gradient-to-br from-[#d44016] to-[#1e1311] rounded-2xl p-6 shadow-xl relative overflow-hidden border border-[#f05123]/30">
+                    <div class="absolute right-0 top-0 -mr-12 -mt-12 w-40 h-40 bg-[#f05123]/10 rounded-full blur-2xl"></div>
+                    
+                    <p class="text-[10px] font-bold text-orange-200/80 uppercase tracking-wider">Remaining Balance</p>
+                    <h2 id="netBalance" class="text-3xl font-extrabold text-white mt-1.5 tracking-tight font-sans">₹0.00</h2>
+                    
+                    <div class="grid grid-cols-2 gap-4 mt-6 pt-5 border-t border-white/10">
+                        <div class="flex items-center space-x-3">
+                            <div class="p-2 bg-emerald-500/20 text-emerald-400 rounded-xl border border-emerald-500/10">
+                                <i data-lucide="arrow-down-left" class="w-4 h-4"></i>
+                            </div>
+                            <div>
+                                <p class="text-[11px] text-orange-200/70 font-medium">Monthly Income</p>
+                                <p id="totalIncome" class="text-sm font-bold text-emerald-400">₹0.00</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <div class="p-2 bg-rose-500/20 text-rose-400 rounded-xl border border-rose-500/10">
+                                <i data-lucide="arrow-up-right" class="w-4 h-4"></i>
+                            </div>
+                            <div>
+                                <p class="text-[11px] text-orange-200/70 font-medium">Total Expenses</p>
+                                <p id="totalExpenses" class="text-sm font-bold text-rose-400">₹0.00</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Graph breakdown -->
+                <div class="bg-[#140e0c] rounded-2xl p-5 border border-[#2c1d1a] space-y-4">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-xs font-bold text-stone-200 flex items-center gap-2 font-serif tracking-wide text-sm">
+                            <i data-lucide="pie-chart" class="w-4 h-4 text-[#f05123]"></i> Analytics Breakdown
+                        </h3>
+                    </div>
+                    <div class="relative w-full h-44 flex items-center justify-center">
+                        <canvas id="balanceChart" class="max-w-full hidden z-10"></canvas>
+                        <div id="noChartData" class="absolute inset-0 flex flex-col items-center justify-center bg-[#140e0c] text-stone-500 text-xs text-center space-y-1">
+                            <i data-lucide="bar-chart-3" class="w-8 h-8 text-stone-600"></i>
+                            <span>No sync data to visualize yet</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Form Area -->
+                <div class="bg-[#140e0c] rounded-2xl p-5 border border-[#2c1d1a] space-y-4">
+                    <h3 class="text-xs font-bold text-stone-200 flex items-center gap-2 font-serif tracking-wide text-sm">
+                        <i data-lucide="plus-circle" class="w-4 h-4 text-[#f05123]"></i> Cloud Input Ledger
+                    </h3>
+                    
+                    <form id="transactionForm" class="space-y-4">
+                        <div>
+                            <label class="block text-[10px] font-bold text-stone-400 uppercase tracking-wide mb-1.5">Description</label>
+                            <input type="text" id="desc" required placeholder="e.g. Work pay, Groceries, Electricity bill" 
+                                   class="w-full px-3.5 py-3 bg-[#0c0807] border border-[#2c1d1a] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#f05123] text-sm text-stone-100 placeholder:text-stone-600 transition-all">
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-[10px] font-bold text-stone-400 uppercase tracking-wide mb-1.5">Amount (₹)</label>
+                                <input type="number" id="amount" step="0.01" required placeholder="0.00" 
+                                       class="w-full px-3.5 py-3 bg-[#0c0807] border border-[#2c1d1a] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#f05123] text-sm text-stone-100 placeholder:text-stone-600 transition-all">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-stone-400 uppercase tracking-wide mb-1.5">Type</label>
+                                <select id="type" 
+                                        class="w-full px-3.5 py-3 bg-[#0c0807] border border-[#2c1d1a] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#f05123] text-sm text-stone-100 transition-all cursor-pointer font-sans">
+                                    <option value="income" class="bg-[#140e0c]">Income (+)</option>
+                                    <option value="expense" class="bg-[#140e0c]">Expense (-)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-[10px] font-bold text-stone-400 uppercase tracking-wide mb-1.5">Category</label>
+                                <select id="category" 
+                                        class="w-full px-3.5 py-3 bg-[#0c0807] border border-[#2c1d1a] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#f05123] text-sm text-stone-100 transition-all cursor-pointer font-sans">
+                                    <option value="salary">Salary / Job</option>
+                                    <option value="food">Food & Diners</option>
+                                    <option value="utilities">Bills & Power</option>
+                                    <option value="shopping">Shopping</option>
+                                    <option value="transport">Transport</option>
+                                    <option value="leisure">Entertainment</option>
+                                    <option value="other">Miscellaneous</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-stone-400 uppercase tracking-wide mb-1.5">Date</label>
+                                <input type="date" id="date" required 
+                                       class="w-full px-3.5 py-3 bg-[#0c0807] border border-[#2c1d1a] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#f05123] text-sm text-stone-100 transition-all cursor-pointer">
+                            </div>
+                        </div>
+
+                        <button type="submit" 
+                                class="w-full bg-[#f05123] hover:bg-[#d44016] text-white font-bold py-3.5 rounded-xl transition-all duration-150 text-sm shadow-lg shadow-[#f05123]/10 flex items-center justify-center gap-2">
+                            <i data-lucide="plus" class="w-4 h-4"></i> Add SQL Row Entry
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Ledger Register List -->
+                <div class="bg-[#140e0c] rounded-2xl p-5 border border-[#2c1d1a] space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xs font-bold text-stone-200 flex items-center gap-2 font-serif tracking-wide text-sm">
+                            <i data-lucide="receipt" class="w-4 h-4 text-[#f05123]"></i> Monthly Register
+                        </h3>
+                        <div class="flex items-center gap-2">
+                            <button onclick="window.syncNeon(false)" class="p-1.5 text-stone-400 hover:text-[#f05123] hover:bg-[#1c1411] rounded-lg transition-all" title="Force Refresh Neon SQL">
+                                <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                            </button>
+                            <button onclick="window.exportCSV()" class="p-1.5 text-stone-400 hover:text-white hover:bg-[#1c1411] rounded-lg transition-all" title="Export to CSV">
+                                <i data-lucide="download" class="w-4 h-4"></i>
+                            </button>
+                            <span id="recordCount" class="text-[10px] bg-[#241715] text-[#f05123] font-bold px-2 py-0.5 rounded-full">0 entries</span>
+                        </div>
+                    </div>
+
+                    <div class="relative">
+                        <i data-lucide="search" class="absolute left-3 top-3 w-4 h-4 text-stone-600"></i>
+                        <input type="text" id="recordSearch" placeholder="Search entries..." 
+                               class="w-full pl-9 pr-4 py-2 bg-[#0c0807] border border-[#2c1d1a] rounded-xl focus:outline-none focus:ring-1 focus:ring-[#f05123] text-xs text-stone-100 placeholder:text-stone-600 transition-all">
+                    </div>
+
+                    <div id="transactionList" class="space-y-2.5 max-h-96 overflow-y-auto custom-scrollbar pr-1">
+                        <!-- Loaded dynamically from database or local sandboxes -->
+                    </div>
+                </div>
+
+                <!-- WhatsApp Share tool -->
+                <div class="bg-[#140e0c] rounded-2xl p-5 border border-[#2c1d1a] space-y-4">
+                    <div class="flex items-start gap-3">
+                        <div class="p-3 bg-emerald-500/10 text-emerald-400 rounded-2xl border border-emerald-500/20">
+                            <i data-lucide="share-2" class="w-5 h-5"></i>
+                        </div>
+                        <div class="space-y-0.5">
+                            <h4 class="text-xs font-bold text-stone-200 font-serif">Get Report on WhatsApp</h4>
+                            <p class="text-[10px] text-stone-400 leading-relaxed">Send an organized text breakdown of this month's budget register directly to your WhatsApp personal chat or family groups.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-3 pt-2">
+                        <div>
+                            <label class="block text-[9px] font-bold text-stone-500 uppercase tracking-wider mb-1">Send to Phone (Optional)</label>
+                            <input type="tel" id="whatsappPhone" placeholder="e.g. 919876543210 (Country code first)" class="w-full bg-[#0c0807] border border-[#2c1d1a] px-3 py-2.5 text-xs rounded-xl text-stone-300 focus:outline-none focus:border-emerald-500">
+                        </div>
+                        <button onclick="window.generateWhatsAppReport()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-all">
+                            <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.513 2.262 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.717-1.456L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.625 1.451 5.437.002 9.861-4.416 9.863-9.852.001-2.632-1.021-5.105-2.88-6.967C16.38 1.926 13.912.904 11.284.903c-5.44 0-9.863 4.418-9.865 9.854-.001 1.554.434 3.074 1.258 4.409l-.999 3.647 3.738-.979z"/>
+                            </svg>
+                            Export Monthly Report to WhatsApp
+                        </button>
+                    </div>
+                </div>
+
+            </main>
+
+            <!-- Footer controls -->
+            <footer class="bg-[#0c0807] border-t border-[#241715] px-5 py-4 flex justify-between items-center absolute bottom-0 left-0 right-0 z-40 backdrop-blur-md">
+                <div>
+                    <p class="text-[9px] text-stone-500 uppercase font-bold tracking-wider">All-Time Balance</p>
+                    <p id="allTimeBalance" class="text-sm font-bold text-[#f05123]">₹0.00</p>
+                </div>
+                <button onclick="window.triggerResetConfirmation()" class="text-xs font-semibold text-stone-500 hover:text-rose-400 transition-colors flex items-center gap-1.5 p-2 rounded-lg hover:bg-[#1c1411]">
+                    <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Clear Register
+                </button>
+            </footer>
+        </div>
+
+        <!-- Data Deletion Confirm Modal -->
+        <div id="confirmModal" class="hidden fixed inset-0 z-50 bg-[#060404]/90 backdrop-blur-sm flex items-center justify-center px-6">
+            <div class="bg-[#140e0c] border border-[#2c1d1a] p-6 rounded-2xl max-w-sm w-full space-y-4 shadow-2xl">
+                <div class="p-3 bg-rose-500/10 text-rose-400 w-fit rounded-2xl">
+                    <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h4 class="text-base font-bold text-stone-100 font-serif">Wipe Register Rows?</h4>
+                    <p class="text-xs text-stone-400 mt-1">This will permanently delete all financial entries mapped to your storage view. This action cannot be undone.</p>
+                </div>
+                <div class="flex gap-3 pt-2">
+                    <button onclick="window.closeConfirmation()" class="flex-1 py-2.5 bg-[#1c1411] hover:bg-[#281d19] text-xs font-bold text-stone-300 rounded-xl transition-all">Cancel</button>
+                    <button onclick="window.executeResetData()" class="flex-1 py-2.5 bg-rose-600 hover:bg-rose-500 text-xs font-bold text-white rounded-xl transition-all">Execute DELETE</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // ═══════════════════════════════════════════════════════════════════
+        // ⚙️  GITHUB SETUP — fill in your 3 values below, then save the file
+        //
+        //  OWNER  → your GitHub username  (e.g. "john")
+        //  REPO   → a new private repo you created for this app (e.g. "fintrack-db")
+        //  TOKEN  → a fine-grained Personal Access Token with Contents read+write
+        //           (see the guide at the bottom of this file)
+        // ═══════════════════════════════════════════════════════════════════
+        const GH_OWNER = 'ameen-73';   // ← change this
+        const GH_REPO  = 'fintrack';         // ← change this
+        const GH_TOKEN = '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';       // ← change this (fine-grained PAT)
+
+        // ── Runtime state ─────────────────────────────────────────────────
+        let transactions = [];
+        let analyticsChart = null;
+        let isGitHubConnected = false;
+        let authTabState = 'login';
+        let currentUser = localStorage.getItem('fintrack_logged_user') || null;
+        let autoSyncIntervalId = null;
+
+        // ── GitHub API helpers ────────────────────────────────────────────
+        // Each user's data lives in two files inside the repo:
+        //   db/users.json        → { "email": { password_hash, created_at }, ... }
+        //   db/<email-safe>.json → [ ...transaction objects ]
+
+        function emailToFilename(email) {
+            // Convert email to a safe filename: "a@b.com" → "a_at_b.com"
+            return email.replace(/[@]/g, '_at_').replace(/[^a-z0-9._-]/gi, '_');
+        }
+
+        // Read a JSON file from the repo. Returns { data, sha } or { data: null, sha: null }
+        async function ghReadFile(path) {
+            const url = `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${path}`;
+            const res = await fetch(url, {
+                headers: {
+                    'Authorization': `Bearer ${GH_TOKEN}`,
+                    'Accept': 'application/vnd.github+json',
+                    'X-GitHub-Api-Version': '2022-11-28'
+                }
+            });
+            if (res.status === 404) return { data: null, sha: null };
+            if (!res.ok) throw new Error(`GitHub read failed: ${res.status}`);
+            const json = await res.json();
+            const decoded = JSON.parse(atob(json.content.replace(/\n/g, '')));
+            return { data: decoded, sha: json.sha };
+        }
+
+        // Write (create or update) a JSON file in the repo
+        async function ghWriteFile(path, data, sha = null) {
+            const url = `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${path}`;
+            const body = {
+                message: `FinTrack update: ${path} [${new Date().toISOString()}]`,
+                content: btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2)))),
+            };
+            if (sha) body.sha = sha; // required for updates
+            const res = await fetch(url, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${GH_TOKEN}`,
+                    'Accept': 'application/vnd.github+json',
+                    'Content-Type': 'application/json',
+                    'X-GitHub-Api-Version': '2022-11-28'
+                },
+                body: JSON.stringify(body)
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.message || `GitHub write failed: ${res.status}`);
+            }
+            return await res.json();
+        }
+
+        // ── Convenience: users store ──────────────────────────────────────
+        async function getUsers() {
+            const { data, sha } = await ghReadFile('db/users.json');
+            return { users: data || {}, sha };
+        }
+
+        async function saveUsers(users, sha) {
+            return ghWriteFile('db/users.json', users, sha);
+        }
+
+        // ── Convenience: transactions store for a user ────────────────────
+        async function getUserTransactions(email) {
+            const path = `db/${emailToFilename(email)}.json`;
+            const { data, sha } = await ghReadFile(path);
+            return { rows: data || [], sha };
+        }
+
+        async function saveUserTransactions(email, rows, sha) {
+            const path = `db/${emailToFilename(email)}.json`;
+            return ghWriteFile(path, rows, sha);
+        }
+
+        const categoryMeta = {
+            salary: { emoji: '💰', color: 'emerald', text: 'Salary & Jobs' },
+            food: { emoji: '🍔', color: 'amber', text: 'Food & Diners' },
+            utilities: { emoji: '⚡', color: 'blue', text: 'Bills & Power' },
+            shopping: { emoji: '🛍️', color: 'fuchsia', text: 'Shopping' },
+            transport: { emoji: '🚗', color: 'sky', text: 'Transport' },
+            leisure: { emoji: '🎟️', color: 'purple', text: 'Leisure & Ent.' },
+            other: { emoji: '📦', color: 'slate', text: 'Miscellaneous' }
+        };
+
+        // ── SHA-256 password hashing (stays the same) ─────────────────────
+        async function hashPassword(rawPassword) {
+            const encoder = new TextEncoder();
+            const dataBytes = encoder.encode(rawPassword);
+            const digestBuffer = await crypto.subtle.digest('SHA-256', dataBytes);
+            const byteArray = Array.from(new Uint8Array(digestBuffer));
+            return byteArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        // ── Toast notification ────────────────────────────────────────────
+        function triggerToast(message) {
+            let toastMessage = document.getElementById('toastMessage');
+            if (!toastMessage) {
+                toastMessage = document.createElement('div');
+                toastMessage.id = 'toastMessage';
+                toastMessage.className = 'fixed bottom-24 left-1/2 -translate-x-1/2 bg-[#1c1411] text-stone-200 text-xs px-4 py-3 rounded-xl shadow-xl flex items-center gap-2.5 border border-[#3d2722] opacity-0 transition-opacity duration-300 pointer-events-none z-50';
+                toastMessage.innerHTML = `
+                    <div class="w-5 h-5 bg-[#f05123]/20 rounded-full flex items-center justify-center">
+                        <i data-lucide="bell-ring" class="w-3.5 h-3.5 text-[#f05123]"></i>
+                    </div>
+                    <span id="toastText"></span>
+                `;
+                document.body.appendChild(toastMessage);
+                lucide.createIcons();
+            }
+            const toastText = document.getElementById('toastText');
+            if (toastText) toastText.innerText = message;
+            toastMessage.style.opacity = '1';
+            setTimeout(() => { toastMessage.style.opacity = '0'; }, 2500);
+        }
+
+        // ── GitHub connection check (replaces initializeDatabaseSchema) ───
+        async function initializeDatabaseSchema() {
+            if (GH_OWNER === 'YOUR_GITHUB_USERNAME' || GH_TOKEN === 'YOUR_GITHUB_TOKEN') {
+                isGitHubConnected = false;
+                document.getElementById('setupNoticeBanner').classList.remove('hidden');
+                document.getElementById('unresponsiveBanner').classList.remove('hidden');
+                updateCloudStatusVisuals(false);
+                triggerToast("GitHub not configured — running offline.");
+                return;
+            }
+            try {
+                // Test connectivity: try to read (or create) the users file
+                const { data } = await ghReadFile('db/users.json');
+                if (data === null) {
+                    // First run: create the users index file
+                    await ghWriteFile('db/users.json', {});
+                }
+                isGitHubConnected = true;
+                document.getElementById('unresponsiveBanner').classList.add('hidden');
+                document.getElementById('setupNoticeBanner').classList.add('hidden');
+                updateCloudStatusVisuals(true);
+            } catch (err) {
+                console.warn("GitHub connection failed:", err);
+                isGitHubConnected = false;
+                document.getElementById('unresponsiveBanner').classList.remove('hidden');
+                updateCloudStatusVisuals(false);
+                triggerToast("GitHub unreachable — running in offline mode.");
+            }
+        }
+
+        function updateCloudStatusVisuals(connected) {
+            const statusIndicatorDot = document.getElementById('statusIndicatorDot');
+            const headerStatusSubtitle = document.getElementById('headerStatusSubtitle');
+            if (connected && currentUser) {
+                statusIndicatorDot.className = "w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse";
+                headerStatusSubtitle.className = "text-[9px] text-emerald-400 font-bold tracking-wider uppercase";
+                headerStatusSubtitle.innerText = "GITHUB SYNC ACTIVE";
+            } else if (connected && !currentUser) {
+                statusIndicatorDot.className = "w-1.5 h-1.5 rounded-full bg-[#f05123] animate-pulse";
+                headerStatusSubtitle.className = "text-[9px] text-[#f05123] font-bold tracking-wider uppercase";
+                headerStatusSubtitle.innerText = "GITHUB READY · LOG IN";
+            } else {
+                statusIndicatorDot.className = "w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse";
+                headerStatusSubtitle.className = "text-[9px] text-amber-500 font-bold tracking-wider uppercase";
+                headerStatusSubtitle.innerText = "LOCAL STORAGE MODE";
+            }
+        }
+
+        // ── Fetch transactions from GitHub (replaces fetchAndSyncNeonData) ─
+        async function fetchAndSyncNeonData(silentFlag = false) {
+            if (!isGitHubConnected || !currentUser) {
+                const storeKey = currentUser ? ('fintrack_local_ledger_' + currentUser) : 'fintrack_local_ledger';
+                transactions = JSON.parse(localStorage.getItem(storeKey)) || [];
+                renderDashboard();
+                return;
+            }
+            try {
+                const { rows } = await getUserTransactions(currentUser);
+                transactions = rows;
+                // Cache locally for offline fallback
+                const storeKey = 'fintrack_local_ledger_' + currentUser;
+                localStorage.setItem(storeKey, JSON.stringify(transactions));
+                document.getElementById('unresponsiveBanner').classList.add('hidden');
+                const timestampStamp = new Date().toLocaleTimeString();
+                document.getElementById('lastSyncStamp').innerText = `Synced at ${timestampStamp}`;
+                renderDashboard();
+            } catch (err) {
+                console.error("GitHub sync failed:", err);
+                const storeKey = currentUser ? ('fintrack_local_ledger_' + currentUser) : 'fintrack_local_ledger';
+                transactions = JSON.parse(localStorage.getItem(storeKey)) || [];
+                document.getElementById('unresponsiveBanner').classList.remove('hidden');
+                renderDashboard();
+            }
+        }
+
+        // ── Auto-sync polling ─────────────────────────────────────────────
+        function startSyncPoolingEngine() {
+            stopSyncPoolingEngine();
+            if (currentUser && isGitHubConnected) {
+                autoSyncIntervalId = setInterval(() => {
+                    fetchAndSyncNeonData(true);
+                }, 30000);
+            }
+        }
+
+        function stopSyncPoolingEngine() {
+            if (autoSyncIntervalId) {
+                clearInterval(autoSyncIntervalId);
+                autoSyncIntervalId = null;
+            }
+        }
+
+        // ── Auth tab toggle ───────────────────────────────────────────────
+        window.setAuthTab = function(targetTab) {
+            authTabState = targetTab;
+            const tabLogin = document.getElementById('tabLogin');
+            const tabRegister = document.getElementById('tabRegister');
+            const submitBtnText = document.getElementById('authSubmitText');
+            if (targetTab === 'login') {
+                tabLogin.className = "flex-1 pb-2 text-[#f05123] border-b-2 border-[#f05123] font-bold";
+                tabRegister.className = "flex-1 pb-2 text-stone-500 font-semibold hover:text-stone-300";
+                submitBtnText.innerText = "Access Sync Workspace";
+            } else {
+                tabRegister.className = "flex-1 pb-2 text-[#f05123] border-b-2 border-[#f05123] font-bold";
+                tabLogin.className = "flex-1 pb-2 text-stone-500 font-semibold hover:text-stone-300";
+                submitBtnText.innerText = "Create & Sync Account";
+            }
+        };
+
+        // ── Login / Register via GitHub JSON store ────────────────────────
+        window.handleAuthSubmit = async function(event) {
+            event.preventDefault();
+            const emailValue = document.getElementById('authEmail').value.trim().toLowerCase();
+            const passwordValue = document.getElementById('authPassword').value;
+
+            if (!emailValue || !passwordValue) { triggerToast("Missing field parameters."); return; }
+            if (passwordValue.length < 6) { triggerToast("Password must be at least 6 characters."); return; }
+            if (!isGitHubConnected) { triggerToast("GitHub not connected. Cannot authenticate."); return; }
+
+            const submitBtn = document.getElementById('authSubmitBtn');
+            submitBtn.disabled = true;
+            triggerToast("Authenticating...");
+
+            try {
+                const passwordHashHex = await hashPassword(passwordValue);
+                const { users, sha: usersSha } = await getUsers();
+
+                if (authTabState === 'login') {
+                    const user = users[emailValue];
+                    if (!user) {
+                        triggerToast("Email not registered. Switch to Sign Up.");
+                        submitBtn.disabled = false;
+                        return;
+                    }
+                    if (user.password_hash !== passwordHashHex) {
+                        triggerToast("Incorrect password.");
+                        submitBtn.disabled = false;
+                        return;
+                    }
+                    triggerToast("Access granted. Syncing...");
+                    performLoginState(emailValue);
+                } else {
+                    if (users[emailValue]) {
+                        triggerToast("Account already exists. Try logging in.");
+                        submitBtn.disabled = false;
+                        return;
+                    }
+                    // Register: add to users index
+                    users[emailValue] = { password_hash: passwordHashHex, created_at: Date.now() };
+                    await saveUsers(users, usersSha);
+                    // Create empty ledger file for this user
+                    await ghWriteFile(`db/${emailToFilename(emailValue)}.json`, []);
+                    triggerToast("Account created!");
+                    performLoginState(emailValue);
+                }
+            } catch (err) {
+                console.error("Auth error:", err);
+                triggerToast("Authentication failed: " + (err.message || "Unknown error"));
+                submitBtn.disabled = false;
+            }
+        };
+
+        function performLoginState(email) {
+            currentUser = email;
+            localStorage.setItem('fintrack_logged_user', email);
+            document.getElementById('emailAuthBanner').classList.add('hidden');
+            document.getElementById('logoutBtn').classList.remove('hidden');
+            const userBadgeCard = document.getElementById('userSyncStatusCard');
+            userBadgeCard.classList.remove('hidden');
+            document.getElementById('activeUserLabel').innerText = `Sync: ${email}`;
+            document.getElementById('authEmail').value = '';
+            document.getElementById('authPassword').value = '';
+            document.getElementById('authSubmitBtn').disabled = false;
+            updateCloudStatusVisuals(true);
+            fetchAndSyncNeonData();
+            startSyncPoolingEngine();
+        }
+
+        window.handleLogout = function() {
+            stopSyncPoolingEngine();
+            currentUser = null;
+            localStorage.removeItem('fintrack_logged_user');
+            document.getElementById('emailAuthBanner').classList.remove('hidden');
+            document.getElementById('logoutBtn').classList.add('hidden');
+            document.getElementById('userSyncStatusCard').classList.add('hidden');
+            triggerToast("Logged out successfully.");
+            updateCloudStatusVisuals(isGitHubConnected);
+            transactions = JSON.parse(localStorage.getItem('fintrack_local_ledger')) || [];
+            renderDashboard();
+        };
+
+        // ── Add transaction ───────────────────────────────────────────────
+        async function commitFormSubmissionData(event) {
+            event.preventDefault();
+            const descInput = document.getElementById('desc');
+            const amountInput = document.getElementById('amount');
+            const typeInput = document.getElementById('type');
+            const categoryInput = document.getElementById('category');
+            const dateInput = document.getElementById('date');
+
+            const parsedAmount = parseFloat(amountInput.value);
+            if (!parsedAmount || parsedAmount <= 0) {
+                triggerToast("Please enter a valid amount greater than zero.");
+                return;
+            }
+
+            const newEntry = {
+                id: 'row_' + Date.now() + Math.random().toString(36).substring(2, 6),
+                description: descInput.value.trim(),
+                amount: parsedAmount,
+                type: typeInput.value,
+                category: categoryInput.value,
+                date: dateInput.value,
+                timestamp: Date.now()
+            };
+
+            if (isGitHubConnected && currentUser) {
+                try {
+                    triggerToast("Saving to GitHub...");
+                    const { rows, sha } = await getUserTransactions(currentUser);
+                    rows.push(newEntry);
+                    await saveUserTransactions(currentUser, rows, sha);
+                    transactions = rows;
+                    // Update local cache
+                    localStorage.setItem('fintrack_local_ledger_' + currentUser, JSON.stringify(transactions));
+                    triggerToast("Saved to GitHub ✓");
+                    renderDashboard();
+                } catch (err) {
+                    console.warn("GitHub save failed, writing locally:", err);
+                    saveToLocalStorage(newEntry);
+                }
+            } else {
+                saveToLocalStorage(newEntry);
+            }
+
+            descInput.value = '';
+            amountInput.value = '';
+        }
+
+        function saveToLocalStorage(record) {
+            transactions.push(record);
+            const storeKey = currentUser ? ('fintrack_local_ledger_' + currentUser) : 'fintrack_local_ledger';
+            localStorage.setItem(storeKey, JSON.stringify(transactions));
+            triggerToast("Saved locally (offline mode).");
+            renderDashboard();
+        }
+
+        // ── Delete transaction ────────────────────────────────────────────
+        async function issueDeleteRowTransaction(id) {
+            if (isGitHubConnected && currentUser) {
+                try {
+                    const { rows, sha } = await getUserTransactions(currentUser);
+                    const updated = rows.filter(t => t.id !== id);
+                    await saveUserTransactions(currentUser, updated, sha);
+                    transactions = updated;
+                    localStorage.setItem('fintrack_local_ledger_' + currentUser, JSON.stringify(transactions));
+                    triggerToast("Deleted from GitHub ✓");
+                    renderDashboard();
+                } catch (err) {
+                    console.warn("GitHub delete failed, removing locally:", err);
+                    deleteLocalTransaction(id);
+                }
+            } else {
+                deleteLocalTransaction(id);
+            }
+        }
+
+        function deleteLocalTransaction(id) {
+            transactions = transactions.filter(t => t.id !== id);
+            const storeKey = currentUser ? ('fintrack_local_ledger_' + currentUser) : 'fintrack_local_ledger';
+            localStorage.setItem(storeKey, JSON.stringify(transactions));
+            triggerToast("Deleted locally.");
+            renderDashboard();
+        }
+
+        // ── Reset / clear all data ────────────────────────────────────────
+        window.triggerResetConfirmation = function() {
+            document.getElementById('confirmModal').classList.remove('hidden');
+        };
+        window.closeConfirmation = function() {
+            document.getElementById('confirmModal').classList.add('hidden');
+        };
+
+        window.executeResetData = async function() {
+            document.getElementById('confirmModal').classList.add('hidden');
+            if (isGitHubConnected && currentUser) {
+                try {
+                    const { sha } = await getUserTransactions(currentUser);
+                    await saveUserTransactions(currentUser, [], sha);
+                    transactions = [];
+                    const storeKey = 'fintrack_local_ledger_' + currentUser;
+                    localStorage.removeItem(storeKey);
+                    triggerToast("All data cleared from GitHub.");
+                    renderDashboard();
+                } catch (e) {
+                    console.error("GitHub wipe failed:", e);
+                    wipeLocalStorage();
+                }
+            } else {
+                wipeLocalStorage();
+            }
+        };
+
+        function wipeLocalStorage() {
+            transactions = [];
+            const storeKey = currentUser ? ('fintrack_local_ledger_' + currentUser) : 'fintrack_local_ledger';
+            localStorage.removeItem(storeKey);
+            triggerToast("Dashboard cleared.");
+            renderDashboard();
+        }
+
+        // ── Sync button ───────────────────────────────────────────────────
+        window.syncNeon = function() {
+            fetchAndSyncNeonData();
+            triggerToast("Syncing with GitHub...");
+        };
+
+        function renderDashboard() {
+            const monthFilterInput = document.getElementById('monthFilter');
+            const searchInput = document.getElementById('recordSearch');
+            const transactionListEl = document.getElementById('transactionList');
+
+            const pickedMonthContext = monthFilterInput.value; 
+            const trackingSearchParameterStr = searchInput.value.trim().toLowerCase();
+
+            let displayedSetArray = [...transactions];
+
+            // Filter entries by Month
+            if (pickedMonthContext) {
+                displayedSetArray = displayedSetArray.filter(t => t.date && t.date.startsWith(pickedMonthContext));
+            }
+
+            // Filter entries by Search Term
+            if (trackingSearchParameterStr) {
+                displayedSetArray = displayedSetArray.filter(t => 
+                    (t.description && t.description.toLowerCase().includes(trackingSearchParameterStr)) ||
+                    (t.category && t.category.toLowerCase().includes(trackingSearchParameterStr))
+                );
+            }
+
+            // Chronological Sorting (Newest First)
+            displayedSetArray.sort((alpha, beta) => new Date(beta.date) - new Date(alpha.date));
+
+            let computedMonthlyIncome = 0;
+            let computedMonthlyExpense = 0;
+            let computedAllTimeBalanceTotal = 0;
+
+            transactions.forEach(row => {
+                const parsedVal = parseFloat(row.amount) || 0;
+                if (row.type === 'income') computedAllTimeBalanceTotal += parsedVal;
+                else computedAllTimeBalanceTotal -= parsedVal;
+            });
+
+            displayedSetArray.forEach(row => {
+                const parsedVal = parseFloat(row.amount) || 0;
+                if (row.type === 'income') computedMonthlyIncome += parsedVal;
+                else computedMonthlyExpense += parsedVal;
+            });
+
+            const internalNetDiff = computedMonthlyIncome - computedMonthlyExpense;
+
+            document.getElementById('netBalance').innerText = `₹${internalNetDiff.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+            document.getElementById('totalIncome').innerText = `₹${computedMonthlyIncome.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+            document.getElementById('totalExpenses').innerText = `₹${computedMonthlyExpense.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+            document.getElementById('allTimeBalance').innerText = `₹${computedAllTimeBalanceTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+            document.getElementById('recordCount').innerText = `${displayedSetArray.length} entries`;
+
+            transactionListEl.innerHTML = '';
+
+            if (displayedSetArray.length === 0) {
+                transactionListEl.innerHTML = `
+                    <div class="text-center py-8 text-stone-600 text-xs flex flex-col items-center justify-center space-y-2">
+                        <i data-lucide="folder-open" class="w-6 h-6 stroke-[1.5]"></i>
+                        <span>No records located inside this active view filter.</span>
+                    </div>
+                `;
+                lucide.createIcons();
+                updateChartsLayout({}, computedMonthlyIncome, computedMonthlyExpense);
+                return;
+            }
+
+            const categoriesChartDistributionMap = {};
+
+            displayedSetArray.forEach(record => {
+                const visualDataMeta = categoryMeta[record.category] || categoryMeta.other;
+                const valueNum = parseFloat(record.amount) || 0;
+
+                if (record.type === 'expense') {
+                    categoriesChartDistributionMap[visualDataMeta.text] = (categoriesChartDistributionMap[visualDataMeta.text] || 0) + valueNum;
+                }
+
+                const visualNodeRow = document.createElement('div');
+                visualNodeRow.className = "flex items-center justify-between p-3.5 bg-[#0c0807] border border-[#1f1412] hover:border-[#2c1d1a] rounded-xl transition-all group";
+                visualNodeRow.innerHTML = `
+                    <div class="flex items-center space-x-3 min-w-0">
+                        <div class="w-9 h-9 rounded-xl bg-[#140e0c] flex items-center justify-center text-base border border-[#241715]">
+                            ${visualDataMeta.emoji}
+                        </div>
+                        <div class="min-w-0">
+                            <p class="text-xs font-bold text-stone-200 truncate pr-2">${record.description}</p>
+                            <span class="text-[9px] text-stone-500 font-semibold uppercase tracking-wider block mt-0.5">${visualDataMeta.text} • ${record.date}</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-2.5 shrink-0">
+                        <span class="text-xs font-bold ${record.type === 'income' ? 'text-emerald-400' : 'text-rose-400'}">
+                            ${record.type === 'income' ? '+' : '-'} ₹${valueNum.toFixed(2)}
+                        </span>
+                        <button class="p-1 text-stone-600 hover:text-rose-400 hover:bg-[#241715] rounded-md opacity-0 group-hover:opacity-100 transition-all duration-150" title="Delete record entry row">
+                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                        </button>
+                    </div>
+                `;
+
+                visualNodeRow.querySelector('button').addEventListener('click', async () => {
+                    await issueDeleteRowTransaction(record.id);
+                });
+
+                transactionListEl.appendChild(visualNodeRow);
+            });
+
+            lucide.createIcons();
+            updateChartsLayout(categoriesChartDistributionMap, computedMonthlyIncome, computedMonthlyExpense);
+        }
+
+        function updateChartsLayout(categoryExpensesMap, incomeValue, expenseValue) {
+            const graphCanvas = document.getElementById('balanceChart');
+            const noChartPlaceholder = document.getElementById('noChartData');
+            const keyIndicators = Object.keys(categoryExpensesMap);
+
+            if (keyIndicators.length === 0 && incomeValue === 0) {
+                graphCanvas.classList.add('hidden');
+                noChartPlaceholder.classList.remove('hidden');
+                return;
+            }
+
+            graphCanvas.classList.remove('hidden');
+            noChartPlaceholder.classList.add('hidden');
+
+            let calculatedLabels = [];
+            let renderedValuesData = [];
+            let thematicBackgroundColors = [];
+
+            if (keyIndicators.length > 0) {
+                calculatedLabels = keyIndicators;
+                renderedValuesData = Object.values(categoryExpensesMap);
+                // Vibrant warm orange tones corresponding to Screenshot (133).png
+                thematicBackgroundColors = ['#f05123', '#d44016', '#fb923c', '#fdba74', '#ea580c', '#c2410c', '#a8a29e'];
+            } else {
+                calculatedLabels = ['Income Total', 'Expenses Outflow'];
+                renderedValuesData = [incomeValue, expenseValue];
+                thematicBackgroundColors = ['#10b981', '#f05123'];
+            }
+
+            if (analyticsChart) {
+                analyticsChart.destroy();
+            }
+
+            analyticsChart = new Chart(graphCanvas, {
+                type: 'doughnut',
+                data: {
+                    labels: calculatedLabels,
+                    datasets: [{
+                        data: renderedValuesData,
+                        backgroundColor: thematicBackgroundColors,
+                        borderWidth: 2,
+                        borderColor: '#140e0c'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                boxWidth: 10,
+                                color: '#d6d3d1',
+                                font: { size: 9, family: 'Inter' }
+                            }
+                        }
+                    },
+                    cutout: '70%'
+                }
+            });
+        }
+
+        window.exportCSV = function() {
+            if (transactions.length === 0) {
+                triggerToast("No current matrix row elements ready to export.");
+                return;
+            }
+
+            let csvCompilationRows = ["Row ID,Description,Amount Value,Transaction Type,Category Mapping,Date Logged"];
+            transactions.forEach(t => {
+                csvCompilationRows.push(`"${t.id}","${t.description.replace(/"/g, '""')}",${t.amount},"${t.type}","${t.category}","${t.date}"`);
+            });
+
+            const bufferPayload = csvCompilationRows.join("\n");
+            const dataBlobElement = new Blob([bufferPayload], { type: 'text/csv;charset=utf-8;' });
+            const anchorTriggerElement = document.createElement('a');
+            anchorTriggerElement.href = URL.createObjectURL(dataBlobElement);
+            anchorTriggerElement.setAttribute('download', `Ledger_Export_${document.getElementById('monthFilter').value}.csv`);
+            document.body.appendChild(anchorTriggerElement);
+            anchorTriggerElement.click();
+            document.body.removeChild(anchorTriggerElement);
+            triggerToast("Data export file downloaded.");
+        };
+
+        window.generateWhatsAppReport = function() {
+            const pickedMonthContext = document.getElementById('monthFilter').value;
+            let currentSet = transactions.filter(item => item.date && item.date.startsWith(pickedMonthContext));
+            
+            if (currentSet.length === 0) {
+                triggerToast("No records mapped inside selection month.");
+                return;
+            }
+
+            let calculatedMonthlyIncome = 0;
+            let calculatedMonthlyExpense = 0;
+            let lineItemReports = "";
+
+            currentSet.forEach(t => {
+                const value = parseFloat(t.amount) || 0;
+                const matchSymbol = t.type === 'income' ? '🟢 +' : '🔴 -';
+                if (t.type === 'income') calculatedMonthlyIncome += value;
+                else calculatedMonthlyExpense += value;
+                
+                lineItemReports += `\n• [${t.date}] ${t.description}: ${matchSymbol}₹${value.toFixed(2)}`;
+            });
+
+            const netSavingsDiff = calculatedMonthlyIncome - calculatedMonthlyExpense;
+            
+            const stringMessageText = encodeURIComponent(
+                `📊 *FinTrack Statement [${pickedMonthContext}]*\n` +
+                `----------------------------------------\n` +
+                `💰 Monthly Income: ₹${calculatedMonthlyIncome.toFixed(2)}\n` +
+                `📉 Total Expenses: ₹${calculatedMonthlyExpense.toFixed(2)}\n` +
+                `⚖️ Monthly Savings: ₹${netSavingsDiff.toFixed(2)}\n\n` +
+                `*Ledger Records Register:* ${lineItemReports}\n\n` +
+                `_Generated dynamically via FinTrack Multi-Sync._`
+            );
+
+            const potentialPhoneTarget = document.getElementById('whatsappPhone').value.trim();
+            let finalUrlTarget = `https://api.whatsapp.com/send?text=${stringMessageText}`;
+            if (potentialPhoneTarget) {
+                finalUrlTarget = `https://api.whatsapp.com/send?phone=${potentialPhoneTarget.replace(/\D/g, '')}&text=${stringMessageText}`;
+            }
+            
+            window.open(finalUrlTarget, '_blank');
+        };
+
+        window.syncNeon = function() {
+            fetchAndSyncNeonData();
+            triggerToast("Syncing with GitHub...");
+        };
+
+        // (triggerResetConfirmation, closeConfirmation, executeResetData, wipeLocalStorage
+        //  are defined in the GitHub backend section above)
+
+        // Event listener setups
+        document.getElementById('transactionForm').addEventListener('submit', commitFormSubmissionData);
+        document.getElementById('monthFilter').addEventListener('change', renderDashboard);
+        document.getElementById('recordSearch').addEventListener('input', renderDashboard);
+
+        // Bootstrap
+        window.onload = async function() {
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            document.getElementById('date').value = `${year}-${month}-${day}`;
+            document.getElementById('monthFilter').value = `${year}-${month}`;
+
+            triggerToast("Initializing FinTrack...");
+            await initializeDatabaseSchema();
+
+            if (currentUser) {
+                performLoginState(currentUser);
+            } else {
+                document.getElementById('emailAuthBanner').classList.remove('hidden');
+                document.getElementById('logoutBtn').classList.add('hidden');
+                document.getElementById('userSyncStatusCard').classList.add('hidden');
+                updateCloudStatusVisuals(isGitHubConnected);
+                transactions = JSON.parse(localStorage.getItem('fintrack_local_ledger')) || [];
+                renderDashboard();
+            }
+        };
+    </script>
+</body>
+</html>
